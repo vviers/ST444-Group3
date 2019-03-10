@@ -1,6 +1,7 @@
 # import two useful libraries/modules
 import numpy as np
 import random
+import multiprocessing
 from multiprocessing import Pool
 
 #--------------------------------------------------------------------------------------------------------
@@ -14,7 +15,7 @@ class Particle:
         self.velocity = np.array([random.uniform(-1, 1) for _ in range(ndim)])
         # These attributes are here to store the "memory" of the function
         self.personal_best_position = self.position # initial position
-        self.personal_best_error = np.inf # infinity
+        self.personal_best_fitness = np.inf # infinity
         self.c1 = c1
         self.c2 = c2
         self.w = w
@@ -77,9 +78,9 @@ class PSO:
         # create all the Particles, stored in a list.
         self.particles = [Particle(lower, upper, ndim, c1, c2, w) for _ in range(num_particles)]
         self.fitnesses = np.array([])
-        # store global best and associated error
+        # store global best and associated fitness
         self.global_best = np.array([])
-        self.global_best_error = np.inf # infinity
+        self.global_best_fitness = np.inf # infinity
         self.function = function # function to be optimised
         self.n_iter = n_iter # num of iterations
         self.parallel = parallel
@@ -87,7 +88,7 @@ class PSO:
             self.pooler = Pool(multiprocessing.cpu_count() - 1)
         
     def get_fitnesses(self):
-        # Evaluate all fitnesses in parallel, or not.
+        """Evaluate all fitnesses (in parallel is self.parallel is True.)"""
         if self.parallel:
             fitnesses = self.pooler.apply(self.function, [[part.position for part in self.particles]])
             self.fitnesses = np.array(fitnesses)
@@ -99,14 +100,14 @@ class PSO:
     def update_particles(self):
         '''update particle best known personal position'''
         for i in range(len(self.fitnesses)):
-            if self.fitnesses[i] < self.particles[i].personal_best_error:
-                self.particles[i].personal_best_error = self.fitnesses[i]
+            if self.fitnesses[i] < self.particles[i].personal_best_fitness:
+                self.particles[i].personal_best_fitness = self.fitnesses[i]
                 self.particles[i].personal_best_position = self.particles[i].position          
         
     def update_best(self):
         '''Find the new best global position and update it.'''
-        if np.any(self.fitnesses < self.global_best_error):
-            self.global_best_error = np.min(self.fitnesses)
+        if np.any(self.fitnesses < self.global_best_fitness):
+            self.global_best_fitness = np.min(self.fitnesses)
             self.global_best = self.particles[np.argmin(self.fitnesses)].position
                       
     def move_particles(self):
@@ -118,7 +119,7 @@ class PSO:
     def __str__(self):
         '''Print best global position when calling `print(pso instance)`'''
         return """Current best position: {}
-        With error: {}""".format(self.global_best, self.global_best_error)
+        With fitness: {}""".format(self.global_best, self.global_best_fitness)
     
     def run(self, verbose = True):
         '''Run the algorithm and print the result. By default, update us every 50 iterations.'''
@@ -137,10 +138,10 @@ class PSO:
             
             if (iteration % 50 == 0) & verbose==True:
                 print("Iteration number " + str(iteration))
-                print("Current best error: " + str(self.global_best_error))
+                print("Current best fitness: " + str(self.global_best_fitness))
                 print("\n")
                 
         if verbose:
-            print("Found minimum at {} with value {}.".format(self.global_best, self.global_best_error))
+            print("Found minimum at {} with value {}.".format(self.global_best, self.global_best_fitness))
             
         return(self.global_best)
