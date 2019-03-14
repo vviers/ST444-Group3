@@ -8,7 +8,8 @@ from multiprocessing import Pool
 class Particle:
     """A Python Class for a simple particle."""
     
-    def __init__(self, upper, lower, ndim, c1 = 1, c2 = 2, w = .5):
+    def __init__(self, upper, lower, ndim,
+                 c1 = 1, c2 = 2, w = .5):
         '''Initiate a Particle with an upper and lower bound, and a number of dimensions.'''
         # Initiate position and velocity randomly
         self.position = np.array([random.uniform(lower, upper) for _ in range(ndim)])
@@ -38,9 +39,9 @@ class Particle:
         
             
     def move(self):
-        '''Moves a Particle at a new iteration. Deals with out-of-bound cases (are they ok or not?)'''
+        '''Moves a Particle at a new iteration. Deals with out-of-bound cases (We assume they are ok.)'''
         self.position = self.position + self.velocity
-        # need to deal with when the particle goes out of bound...
+        # need to deal with when the particle goes out of bound? Not here.
 
 # ----------------------------------------------------------------------------------------------------------------
 class PSO:
@@ -70,10 +71,13 @@ class PSO:
     - parallel: whether to evaluate the fitness of particles in parallel. `False` by default as a speed-boost is
     unlikely in most simple settings.
     
+    - epsilon: defines convergence. If an update to the global best is smaller than epsilon, then the algorithm
+               has converged.
+    
     """
     
     def __init__(self, num_particles, function, n_iter, ndim, lower = -10, upper = 10,
-                 c1 = 1, c2 = 2, w = .5, parallel = False):
+                 c1 = 1, c2 = 2, w = .5, parallel = False, epsilon = 10e-7):
         '''Initiate the solver'''
         # create all the Particles, stored in a list.
         self.particles = [Particle(lower, upper, ndim, c1, c2, w) for _ in range(num_particles)]
@@ -84,6 +88,8 @@ class PSO:
         self.function = function # function to be optimised
         self.n_iter = n_iter # num of iterations
         self.parallel = parallel
+        self.epsilon = epsilon
+        self.hasConverged = False
         if parallel:
             self.pooler = Pool(multiprocessing.cpu_count() - 1)
         
@@ -105,10 +111,16 @@ class PSO:
                 self.particles[i].personal_best_position = self.particles[i].position          
         
     def update_best(self):
-        '''Find the new best global position and update it.'''
+        '''Find the new best global position and update it.
+        Additionally check for convergence.'''
         if np.any(self.fitnesses < self.global_best_fitness):
+            fit_before = self.global_best_fitness
             self.global_best_fitness = np.min(self.fitnesses)
             self.global_best = self.particles[np.argmin(self.fitnesses)].position
+            
+            #check convergence
+            if abs(fit_before - self.global_best_fitness) < self.epsilon:
+                self.hasConverged = True
                       
     def move_particles(self):
         '''Run one iteration of the algorithm. Update particles velocity and move them.'''
@@ -140,6 +152,9 @@ class PSO:
                 print("Iteration number " + str(iteration))
                 print("Current best fitness: " + str(self.global_best_fitness))
                 print("\n")
+                
+            if self.hasConverged == True:
+                break
                 
         if verbose:
             print("Found minimum at {} with value {}.".format(self.global_best, self.global_best_fitness))
