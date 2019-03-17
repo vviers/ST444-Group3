@@ -3,6 +3,7 @@ import numpy as np
 import random
 import multiprocessing
 from multiprocessing import Pool
+from multiprocessing.pool import ThreadPool
 
 #--------------------------------------------------------------------------------------------------------
 class Particle:
@@ -71,13 +72,15 @@ class PSO:
     - parallel: whether to evaluate the fitness of particles in parallel. `False` by default as a speed-boost is
     unlikely in most simple settings.
     
+    - threadpool: should the parallelization in fact be multi-threading (shared memory)?
+    
     - epsilon: defines convergence. If an update to the global best is smaller than epsilon, then the algorithm
                has converged.
     
     """
     
     def __init__(self, num_particles, function, n_iter, ndim, lower = -10, upper = 10,
-                 c1 = 1, c2 = 2, w = .5, parallel = False, epsilon = 10e-7):
+                 c1 = 1, c2 = 2, w = .5, parallel = False, threadpool = True, epsilon = 10e-7):
         '''Initiate the solver'''
         # create all the Particles, stored in a list.
         self.particles = [Particle(lower, upper, ndim, c1, c2, w) for _ in range(num_particles)]
@@ -91,7 +94,13 @@ class PSO:
         self.epsilon = epsilon
         self.hasConverged = False
         if parallel:
-            self.pooler = Pool(multiprocessing.cpu_count() - 1)
+            # Two ways to "Parallelize":
+            if threadpool:
+                # Threading (not "real" parallelizing, but a wrapper around the threading module)
+                self.pooler = ThreadPool(3)
+            else:
+                # Multiprocessing
+                self.pooler = Pool(multiprocessing.cpu_count() - 1)
         
     def get_fitnesses(self):
         """Evaluate all fitnesses (in parallel is self.parallel is True.)"""
