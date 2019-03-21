@@ -185,7 +185,7 @@ class PSO_synchron(PSO):
 class PSO_asynchron(PSO):
     '''Derived from the base PSO class, evaluate particle fitness in parallel (asynchronously)'''
     def __init__(self, num_particles, function, n_iter, ndim, lower = -10, upper = 10,
-                         c1 = 1.49618, c2 = 1.49618, w = 0.7298, epsilon = None):
+                         c1 = 1.49618, c2 = 1.49618, w = 0.7298, epsilon = 10e-7):
         
         # Init base PSO class
         super().__init__(num_particles, function, n_iter, ndim, lower, upper,
@@ -199,6 +199,7 @@ class PSO_asynchron(PSO):
         self.global_best_fitness = Value('d', np.inf)
         # Shared counter (to count the number of function evaluations)
         self.count = Value('i', 0)
+        self.hasConverged = Value('i', False)
         # How many time should we evaluate the function?
         self.n_func_eva = n_iter * num_particles
         self.stop_queuing = self.n_func_eva - num_particles
@@ -209,34 +210,40 @@ class PSO_asynchron(PSO):
         
         for part in iter(queue.get, 'STOP'):
             
-            # get fitness of particle and update if better
-            fitness = self.function(part.position)
+            if not self.hasConverged.value:
+                # get fitness of particle and update if better
+                fitness = self.function(part.position)
             
-            if fitness < part.personal_best_fitness:
-                part.personal_best_fitness = fitness
-                part.personal_best_position = part.position
+                if fitness < part.personal_best_fitness:
+                    part.personal_best_fitness = fitness
+                    part.personal_best_position = part.position
                 
-            # update global fitness if needed
-            # best_fitness_before = self.global_best_fitness.value #(for convergence check)
-            if fitness < self.global_best_fitness.value:
-                self.global_best_fitness.value = fitness
-                self.global_best[:] = part.position
+                # update global fitness if needed
+                # best_fitness_before = self.global_best_fitness.value #(for convergence check)
+                if fitness < self.global_best_fitness.value:
+                    if abs(fitness-self.global_best_fitness.value) < self.epsilon:
+                        self.hasConverged.value = True
+                        
+                    self.global_best_fitness.value = fitness
+                    self.global_best[:] = part.position
                 # check convergence!
                 # self.hasConverged = True if best_fitness_before - fitness < self.epsilon else False
             
-            # upgrade and move particle
-            part.update_velocity(self.global_best[:])
-            part.move()
+                # upgrade and move particle
+                part.update_velocity(self.global_best[:])
+                part.move()
             
-            # update the update count by one, check if should line up for another update
-            self.count.value +=1
+                # update the update count by one, check if should line up for another update
+                self.count.value +=1          
+            
             
             # make sure that we only evaluate the function `n_func_eva` time in total
             # also convergence criterion check!
-            if self.count.value <= self.stop_queuing: # and not self.hasConverged:
+            if self.count.value <= self.stop_queuing and not self.hasConverged.value:
                 queue.put(part)
             else:
                 queue.put('STOP')
+                
                 
     # override the run method
     def run(self, verbose=True):
@@ -245,18 +252,19 @@ class PSO_asynchron(PSO):
                     format(len(self.particles), self.n_func_eva))
                 
         # run 3 processes in parallel
-        n_processes = 3
+        n_processes = multiprocessing.cpu_count()-1
         # create a Queue
         task_queue = Queue()
 
         # asynchron PSO
         for part in self.particles:
             task_queue.put(part)
-            processes = []
+        
+        processes = []
         for i in range(n_processes):
             p=Process(target=self.worker, args=(task_queue,))
-            p.start()
             processes.append(p)
+            p.start()
 
         for p in processes:
             p.join()
