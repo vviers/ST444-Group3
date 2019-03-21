@@ -185,7 +185,7 @@ class PSO_synchron(PSO):
 class PSO_asynchron(PSO):
     '''Derived from the base PSO class, evaluate particle fitness in parallel (asynchronously)'''
     def __init__(self, num_particles, function, n_iter, ndim, lower = -10, upper = 10,
-                         c1 = 1.49618, c2 = 1.49618, w = 0.7298, epsilon = 10e-7):
+                         c1 = 1.49618, c2 = 1.49618, w = 0.7298, epsilon = None):
         
         # Init base PSO class
         super().__init__(num_particles, function, n_iter, ndim, lower, upper,
@@ -206,6 +206,7 @@ class PSO_asynchron(PSO):
     # define methods for asynchronous parallel PSO
     def worker(self, queue):
         '''A worker used for asynchronous parallelisation.'''
+        
         for part in iter(queue.get, 'STOP'):
             
             # get fitness of particle and update if better
