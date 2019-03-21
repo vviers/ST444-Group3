@@ -2,7 +2,9 @@
 import numpy as np
 import random
 import multiprocessing
-from multiprocessing import Pool
+from multiprocessing import Pool, Process, Queue, Value, Array
+import matplotlib
+import matplotlib.pyplot as plt
 
 #--------------------------------------------------------------------------------------------------------
 class Particle:
@@ -41,7 +43,7 @@ class Particle:
         '''Moves a Particle at a new iteration. Deals with out-of-bound cases (are they ok or not?)'''
         self.position = self.position + self.velocity
         # need to deal with when the particle goes out of bound...
-
+    
 # ----------------------------------------------------------------------------------------------------------------
 class PSO:
     """
@@ -72,8 +74,8 @@ class PSO:
     
     """
     
-    def __init__(self, num_particles, function, n_iter, ndim, lower = -10, upper = 10,
-                 c1 = 1, c2 = 2, w = .5, parallel = False):
+    def __init__(self, num_particles, function, n_iter, ndim, n_func_eva=5000, lower = -10, upper = 10,
+                 c1 = 1, c2 = 2, w = .5, parallel = False, asy_parallel = False, visual = False):
         '''Initiate the solver'''
         # create all the Particles, stored in a list.
         self.particles = [Particle(lower, upper, ndim, c1, c2, w) for _ in range(num_particles)]
@@ -84,17 +86,25 @@ class PSO:
         self.function = function # function to be optimised
         self.n_iter = n_iter # num of iterations
         self.parallel = parallel
+        self.visual = visual
+
         if parallel:
-            self.pooler = Pool(multiprocessing.cpu_count() - 1)
+            self.pooler = Pool(multiprocessing.cpu_count()-1)
+                
+        if asy_parallel:
+            self.global_best = Array('d',ndim)
+            self.global_best_fitness = Value('d', np.inf)
+            self.count = Value('i', 0)
+            self.n_func_eva = n_func_eva
+            self.num_particles = num_particles
         
     def get_fitnesses(self):
-        """Evaluate all fitnesses (in parallel is self.parallel is True.)"""
-        if self.parallel:
-            fitnesses = self.pooler.apply(self.function, [[part.position for part in self.particles]])
+        """Evaluate all fitnesses (in parallel if self.parallel is True.)"""
+        if self.parallel:            
+            fitnesses = self.pooler.map(self.function, [p.position for p in self.particles])
             self.fitnesses = np.array(fitnesses)
-            
         else :
-            fitnesses = self.function([part.position for part in self.particles])
+            fitnesses = [self.function(part.position) for part in self.particles]
             self.fitnesses = np.array(fitnesses)
     
     def update_particles(self):
@@ -121,6 +131,24 @@ class PSO:
         return """Current best position: {}
         With fitness: {}""".format(self.global_best, self.global_best_fitness)
     
+    def visualise(self, iteration):
+        '''visualisation for PSO on Schaffer f6'''
+        matplotlib.rcParams['xtick.direction'] = 'out'
+        matplotlib.rcParams['ytick.direction'] = 'out'        
+        plt.rcParams["figure.figsize"] = [12,9]
+        x = np.arange(-50, 50, 1.25)
+        y = np.arange(-50, 50, 1.25)
+        X, Y = np.meshgrid(x, y)
+        Z = .5 + ((np.sin(np.sqrt(X**2 + Y**2)))**2 - .5)/((1 + 0.001*(X**2 + Y**2))**2)
+        CS = plt.contour(X, Y, Z, 6)
+        plt.colorbar(CS, shrink = 0.8, extend = 'both')
+        for part in self.particles:
+            circle = plt.Circle((part.position[0], part.position[1]), .5, facecolor='r', edgecolor='r', alpha=0.8)
+            plt.gca().add_patch(circle)
+            
+        plt.savefig('figure_' + str(iteration) + '.png')
+        plt.close()
+    
     def run(self, verbose = True):
         '''Run the algorithm and print the result. By default, update us every 50 iterations.'''
         
@@ -130,6 +158,8 @@ class PSO:
         
         for iteration in range(self.n_iter):
             # this happens in parallel (synchronous only rn)
+            if self.visual:
+                self.visualise(iteration)
             self.get_fitnesses()
             # this doesn't
             self.update_particles()
@@ -145,3 +175,72 @@ class PSO:
             print("Found minimum at {} with value {}.".format(self.global_best, self.global_best_fitness))
             
         return(self.global_best)
+    
+    
+    # ----- Parallel Asynchronous PSO stuff
+    def worker(self, queue):
+        '''A worker used for asynchronous parallelisation.'''
+        for part in iter(queue.get, 'STOP'):
+            
+            # get fitness of particle and update if better
+            fitness = self.function(part.position)
+            
+            if fitness < part.personal_best_fitness:
+                part.personal_best_fitness = fitness
+                part.personal_best_position = part.position
+                
+            # update global fitness if needed
+            if fitness < self.global_best_fitness.value:
+                self.global_best_fitness.value = fitness
+                self.global_best[:] = part.position
+            
+            # upgrade and move particle
+            part.update_velocity(self.global_best[:])
+            part.move()
+            
+            # update the update count by one, check if should line up for another update
+            self.count.value +=1
+            
+            # make sure that we only evaluate the function `n_func_eva` time in total
+            # TODO: add convergence criterion check!
+            if self.count.value <= self.n_func_eva - self.num_particles:
+                queue.put(part)
+                
+            else:
+                queue.put('STOP')
+                
+    def asynch_run(self):
+        '''Run the algorithm in Asynchronous Parallel.'''
+        # run 3 processes in parallel
+        n_processes = 3
+        # create a Queue
+        task_queue = Queue()
+        
+        #
+        for part in self.particles:
+            task_queue.put(part)
+            processes = []
+        for i in range(n_processes):
+            p=Process(target=self.worker, args=(task_queue,))
+            p.start()
+            processes.append(p)
+
+        for p in processes:
+            p.join()
+        
+        # Return value of the optimisation procedure
+        print("Found minimum at {} with value {}.".format(self.global_best[:], self.global_best_fitness.value))
+
+
+
+    
+#def schaffer_f6(x): 
+    
+#    return .5 + ((np.sin(np.sqrt(x[0]**2 + x[1]**2))**2) - .5)/((1 + 0.001*(x[0]**2 + x[1]**2))**2)
+
+
+
+ 
+#pso = PSO(30, schaffer_f6, 50, 2, lower=-100, upper=100, asy_parallel=True)
+#pso.asy_run()
+
