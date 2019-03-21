@@ -233,7 +233,7 @@ class PSO_asynchron(PSO):
             
             # make sure that we only evaluate the function `n_func_eva` time in total
             # also convergence criterion check!
-            if self.count.value <= self.stop_queuing:# and not self.hasConverged:
+            if self.count.value <= self.stop_queuing: # and not self.hasConverged:
                 queue.put(part)
             else:
                 queue.put('STOP')

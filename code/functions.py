@@ -5,6 +5,9 @@ def quad_function(x):
     assert len(x) == 2, "This function expects a two-dimensional input."
     return (x[0] + 2*x[1] - 3)**2 + (x[0] - 2)**2
 
+def sphere(x):
+    return sum([xi**2 for xi in x])
+
 def high_dim_rosenbrock(x):
     return sum([(1-x[i])**2 + 100*(x[i+1] - x[i]**2)**2 for i in range(len(x) - 1)])
 
