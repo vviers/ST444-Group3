@@ -210,31 +210,29 @@ class PSO_asynchron(PSO):
         
         for part in iter(queue.get, 'STOP'):
             
-            if not self.hasConverged.value:
-                # get fitness of particle and update if better
-                fitness = self.function(part.position)
-            
-                if fitness < part.personal_best_fitness:
-                    part.personal_best_fitness = fitness
-                    part.personal_best_position = part.position
+            #if not self.hasConverged.value:
+            # get fitness of particle and update if better
+            fitness = self.function(part.position)
+        
+            if fitness < part.personal_best_fitness:
+                part.personal_best_fitness = fitness
+                part.personal_best_position = part.position
                 
-                # update global fitness if needed
-                # best_fitness_before = self.global_best_fitness.value #(for convergence check)
-                if fitness < self.global_best_fitness.value:
-                    if abs(fitness-self.global_best_fitness.value) < self.epsilon:
-                        self.hasConverged.value = True
+            # update global fitness if needed
+            if fitness < self.global_best_fitness.value:
+                # update convergence
+                print(str(self.global_best_fitness.value - fitness))
+                self.hasConverged.value = True if abs(self.global_best_fitness.value - fitness) < self.epsilon else False
                         
-                    self.global_best_fitness.value = fitness
-                    self.global_best[:] = part.position
-                # check convergence!
-                # self.hasConverged = True if best_fitness_before - fitness < self.epsilon else False
+                self.global_best_fitness.value = fitness
+                self.global_best[:] = part.position
             
-                # upgrade and move particle
-                part.update_velocity(self.global_best[:])
-                part.move()
+            # upgrade and move particle
+            part.update_velocity(self.global_best[:])
+            part.move()
             
-                # update the update count by one, check if should line up for another update
-                self.count.value +=1          
+            # update the update count by one, check if should line up for another update
+            self.count.value +=1          
             
             
             # make sure that we only evaluate the function `n_func_eva` time in total
