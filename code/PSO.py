@@ -23,6 +23,7 @@ class Particle:
         self.c1 = c1
         self.c2 = c2
         self.w = w
+        self.ndim = ndim
     
     
     def __str__(self):
@@ -34,8 +35,9 @@ class Particle:
     def update_velocity(self, global_best):
         '''update a particle's velocity'''
         # two random coefficients in uniform([0, 1])
-        r1 = random.random()
-        r2 = random.random()
+        r1 = np.array([random.random() for _ in range(self.ndim)])
+        r2 = np.array([random.random() for _ in range(self.ndim)])
+        
         self.velocity = (self.w*self.velocity + # inertia
                          self.c1*r1*(self.personal_best_position - self.position) + # cognitive term
                          self.c2*r2*(global_best - self.position)) # social term
@@ -221,7 +223,6 @@ class PSO_asynchron(PSO):
             # update global fitness if needed
             if fitness < self.global_best_fitness.value:
                 # update convergence
-                print(str(self.global_best_fitness.value - fitness))
                 self.hasConverged.value = True if abs(self.global_best_fitness.value - fitness) < self.epsilon else False
                         
                 self.global_best_fitness.value = fitness
