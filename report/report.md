@@ -31,7 +31,7 @@ To remove the need for velocity clamping and to guarantee convergence, @clerc200
 $$v_{k+1}^i = \chi\left(v_k^i + c_1\otimes r_1\otimes (p_k^i-x_k^i)+c_2\otimes r_2\otimes (p_k^g-x_k^i)\right)$$
 $\chi$ is derived theoretically such that convergence is ensured, however, it is not straightforward to derive from this model a practical guideline for parameters selection [@trelea2003particle].
 
-In addition to these two important modifications, different topologies have been considered [@poli2007particle] and many variants of PSO have been developed for different purposes [@poli2007particle, @cheng2018quarter]. 
+In addition to these two important modifications, different topologies have been considered [@poli2007particle] and many variants of PSO have been developed for different purposes [@poli2007particle; @cheng2018quarter]. 
 
 In the rest of the report, PSO model with inertia parameter, as showed in __Algorithm 1__, and with the neighbourhood being the entire swarm (the so-called global best or "gbest" topology) will be used.
 
@@ -202,14 +202,61 @@ __Asynchronous Sequential PSO__
 
 So in synchronous sequetial PSO, after the function evaluation at all particles' positions, then particles' perconal best and global best are updated and the particles are moved according to the updated velocity; while in asynchronous setting, every particle's personal best and the global best are updated after function evaluation at the particle's position, and the particle is moved according to the velocity which is updated with currently available global best, without waiting until the function evaluations at all particles' positions are done.
 
-Hence there are also two ways to parallelise PSO: synchronous and asynchronous parallel PSO, with the parts implemented in parallel italicised in the psuedo codes. Function evalustions at different positions can potentially take different times to be completed, so synchronous parallel PSO can results in the scenario that many processors remain idle, waiting for the remaining ones to complete. This is even more likely to happen when the number of particles is not an integer multiple of the processors, thus increasing the workload imbalance, or when the underlying processors have different execution speeds. Asynchronous parallel PSO can alleviate the workload imbalance by allowing every particle to update its velocity and position right after the function evaluation at its current position, so that a new particle is created immediately for the next iteration. This creates a continuous stream of particles for the processors to work on [@koh2006parallel].
+Hence there are also two ways to parallelise PSO: synchronous and asynchronous parallel PSO, with the parts implemented in parallel italicised in the psuedo codes. Function evalustions at different positions can potentially take different times to be completed, so synchronous parallel PSO can result in the scenario that many processors remain idle, waiting for the remaining ones to complete. This is even more likely to happen when the number of particles is not an integer multiple of the processors, thus increasing the workload imbalance, or when the underlying processors have different execution speeds. Asynchronous parallel PSO can alleviate the workload imbalance by allowing every particle to update its velocity and position right after the function evaluation at its current position, so that a new particle is created immediately for the next iteration. This creates a continuous stream of particles for the processors to work on [@koh2006parallel].
 
 ## Parallelisation in Python
 
-In python, designed for handling a memory management issue, the global python interpreter lock (GIL) only allows a thread to carry the python interpreter at one time, and thus only one CPU is used. The library `multiprocessing` is designed to bypass the GIL, allowing the use of multiple processors and thus parallelisation of codes. The next section includes the pthon impementation of the sequential PSO and two versions of parallel PSO.
+In python, designed for handling a memory management issue, the global python interpreter lock (GIL) only allows a thread to carry the python interpreter at one time, and thus only one CPU is used. The library `multiprocessing` is designed to bypass the GIL, allowing the use of multiple processors and thus parallelisation of codes. The next section includes the python impementation of the sequential PSO and two versions of parallel PSO.
 
 # Implementation
 
+We have implemented a basic version of PSO according to __Algorithm 1__, and two versions of parallel PSO, one with synchronous parallelisation and another one with asynchronous parallelisation. Please refer to the separate `PSO.py` file for the python module and to the documentation in the appendix for a detailed specification of the module. 
+
+## Testing
+
+The written algorithm is tested on six test functions which are showed in __Table 1__ below and documented in the separate python module `functions.py`. For each function, the dimension and the search space of function variables are chosen to be the same as the ones used in @trelea2003particle. For the model parameters, $w$ is set to $0.7298$ while $c_1$ and $c_2$ are set to $1.49618$ for all dimensions, that is, $w_1=w_2=\ldots=w_d=0.7298$ and $c_{1,1}=c_{1,2}=\ldots=c_{1,d}=c_{2,1}=c_{2,2}=\ldots=c_{2,d}=1.49618$. The number of particles used is $30$ and the convergence condition (which in our model, is the minimum difference between consecutive global bests) is set such that each function converges to a value within the neighbourhood of the optimum with an acceptable radius (error), which is the convergence criterion used in @trelea2003particle (see __Table 2__).
+
+__Table 1__: Test functions
+
+Function | Formula 
+--- | ---
+Simple Quadratic | $$ f(x) = (x_1 + 2x_2 - 3)^2 + (x_1 - 2)^2$$ 
+Sphere (de Jong F1) | $$ f(x) = \sum_{i=1}^n x_i^2 $$ 
+Rosenbrock | $$f(\mathbf {x} )=\sum _{i=1}^{N-1}[100(x_{i+1}-x_{i}^{2})^{2}+(1-x_{i})^{2}]$$ 
+Griewank | $$f(x) = 1+{\frac  {1}{4000}}\sum _{{i=1}}^{n}x_{i}^{2}-\prod _{{i=1}}^{n}\cos \left({\frac  {x_{i}}{{\sqrt{i}}}}\right)$$ 
+Schaffer's F6 | $$f(x)=0.5+\frac{sin^2(\sqrt{x_1^2 + x_2^2})-0.5}{[1+0.001 \cdot (x_1^2 + x_2^2)]^2}$$ 
+Rastrigin | $$f(\mathbf {x} )=10n+\sum _{i=1}^{n}\left[x_{i}^{2}-10\cos(2\pi x_{i})\right]$$ 
+
+__Table 2__: dimensions, ranges and acceptable errors for test functions
+
+Function |  Dim | Range | Acceptable error
+--- |  :---: | :---: | ---
+Simple Quadratic |  2 | \[-10,10\] | <$10^{-10}$
+Sphere (de Jong F1) |  30 | \[-100,100\] | <0.01
+Rosenbrock |  30 | \[-30,30\] | <100
+Griewank |  30 | \[-600,600\] | <0.1
+Schaffer's F6 |  2 | \[-100,100\] | <$10^{-5}$
+Rastrigin |  30 | \[-5.12,5.12\] | <100
+
+The result in __Table 3__ is obtained by running the tests on ?? (device name), with ??(number of processors) processors, with `Basic Time`, `Synchron Time` and `Asynchron Time` representing the average running time over ??(number of runs) runs for the basic PSO, synchronous parallel PSO and asynchronous parallel PSO respectively:
+
+__Table 3__: test running times
+
+Function | Basic Time | Synchron Time | Asynchron Time
+--- | :---: | :---: | ---
+Simple Quadratic | 393 $\mu$s | 1.09 ms | 21.7 ms
+Sphere (de Jong F1) | 1.01 ms | 1.59 ms | 23.5 ms
+Rosenbrock | 1.83 ms | 2.04 ms | 17.6 ms
+Griewank | 4.03 ms | 3.76 ms | 21.3 ms
+Schaffer's F6 | 529 $\mu$s | 1.12 ms | 18.2 ms
+Rastrigin | 488 $\mu$s | 2.84 ms | 18.9 ms 
+
+
+## Interpretation
+
+From __Table 3__, it is clear that the basic PSO has attained satisfactory result for all test functions, which is consistent with the result in @trelea2003particle. However, both versions of parallel PSO have showed inferior performance. This is not really that surprising, since only 30 particles are parallelised, and thus the overhead incurred due to inter-process communication has a overwhelming effect. On our device, snychronous parallel PSO achieves a better performance when 1000 particles are used. This is only done for demonstration purpose because even for very complicated functions like those in __Table 1__, 30 particles are sufficient to obtain satisfactory result.
+
+On the other hand, the asynchronous parallel PSO performs badly. The asynchronous PSO is designed to overcome the workload imbalance as mentioned in section 2, but to achieve this, as showed in the psuedo code in section 2, the algorithm checks convergence and update particle's velocity and position after the function evaluation at every particle's position. All these extra steps which are aimed to produce a continuous flow of particles actually slow down the performance of the algorithm. However, this does not invalidate the method, as the method has been proven more efficient when the workload is very unbalanced and the underlying processors are heterogeneous and thus differ in execution speeds.
 
 # Appendix: Particle Swarm Optimization Code Documentation
 
