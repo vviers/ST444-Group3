@@ -30,3 +30,7 @@ Navigate to https://github.com/vviers/ST444-Group3, you will see a `Submit PULL 
 
 You're done!
 
+To convert to pdf with bilbiography and table of contents, mae sure you have latest Pandoc and execute via command line:
+1. cd path/to/ST444-Group3/report
+2. jupyter nbconvert --to markdown Report.ipynb
+3. pandoc --metadata title="Particle Swarm Optimisation" --metadata author="Group 3" -N --toc -V fontsize=12pt -V geometry:margin=1in --listings -H listings-setup.tex --filter pandoc-citeproc --bibliography=references.bib --csl=apa.csl Report.md --pdf-engine=xelatex -o Report.pdf
