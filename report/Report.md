@@ -16,7 +16,7 @@ PSO (synchronous and asynchronous). We implement all three versions of the PSO
 algorithm in python and test them on six classic optimization functions. While all of
 them perform very well on all functions, the parallel implementations typically take
 longer to run – most likely due the relatively cheap cost of each PSO iteration and the
-overhead introduced by the parallelization of python processes."
+overhead introduced by the parallelization of python processes. All code and the report are available on GitHub at https://github.com/vviers/ST444-Group3"
 
 ---
 
