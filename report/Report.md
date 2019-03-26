@@ -1,4 +1,25 @@
 
+---
+title: Particle Swarm Optimisation - Group 3
+
+author:
+- 23383
+- 10772
+- 11053
+- 14781
+
+abstract: "Our group project consists of an extensive description, discussion, and implementation
+of the Particle Swarm Optimization (PSO) algorithm. After describing the simplest
+version of the algorithm – including the theory behind its convergence and choice of
+hyperparameters – and some of its applications, we turn to two parallel variants of
+PSO (synchronous and asynchronous). We implement all three versions of the PSO
+algorithm in python and test them on six classic optimization functions. While all of
+them perform very well on all functions, the parallel implementations typically take
+longer to run – most likely due the relatively cheap cost of each PSO iteration and the
+overhead introduced by the parallelization of python processes."
+
+---
+
 \newpage
 
 # Particle Swarm Algorithm
@@ -112,7 +133,7 @@ In addition, several stochastic models have been formulated to approximate the P
 The condition of $\max\{||\lambda_1||,||\lambda_2||\}<1$ for the convergence to a stable point implies the following set of conditions on the model parameters which can be employed as a practical guideline for parameters selection:
 $$||w||<1 \quad 0<\phi_1+\phi_2<4 \quad w>\frac{\phi_1+\phi_2}{2}-1$$
 
-The intersection area of these constraints is shown as area A in the plot below:
+The intersection area of these constraints is shown as area A in figure 1.
 
 ![Parameters values within area A ensure convergence.](figure_1.png){ width=70% }
 
@@ -171,36 +192,30 @@ There are two ways to implement PSO sequentially: synchronous and asynchronous s
 __Synchronous Sequential PSO__
 
 1. for $i=1,\ldots,N$:
-   1. Randomly initialise $x_0^i$ and $v_0^i$
-    
-2. for $k=1,\ldots,k_{max}$:
+      1. Randomly initialise $x_0^i$ and $v_0^i$
+      
+1. for $k=1,\ldots,k_{max}$:
 
-   1. _for $i=1,\ldots,N$:_
-
-      1. _Evaluate $f(x_k^i)$_
-        
-   2. Check convergence
-    
-   3. Update $p_k^i$, $p_k^g$, $v_{k+1}^i$ and $x_{k+1}^i$
-    
-3. Report results
+      1. _for $i=1,\ldots,N$:_
+      
+          1. _Evaluate $f(x_k^i)$_
+          
+      1. Check convergence
+      
+      1. Update $p_k^i$, $p_k^g$, $v_{k+1}^i$ and $x_{k+1}^i$ 
+      
+1. Report results
 
 __Asynchronous Sequential PSO__
 
 1. for $i=1,\ldots,N$:
-   1. Randomly initialise $x_0^i$ and $v_0^i$
-    
-2. for $k=1,\ldots,k_{max}$:
-
-   1. _for $i=1,\ldots,N$:_
-
-      1. _Evaluate $f(x_k^i)$_
-        
-      2. _Check convergence_
-    
-      3. _Update $p_k^i$, $p_k^g$, $v_{k+1}^i$ and $x_{k+1}^i$_
-    
-3. Report results
+      1. Randomly initialise $x_0^i$ and $v_0^i$  
+1. for $k=1,\ldots,k_{max}$:
+      1. _for $i=1,\ldots,N$:_
+          1. _Evaluate $f(x_k^i)$_        
+          1. _Check convergence_   
+          1. _Update $p_k^i$, $p_k^g$, $v_{k+1}^i$ and $x_{k+1}^i$_   
+1. Report results
 
 So in synchronous sequential PSO, after the function evaluation at all particles' positions, the particles' personal bests and the algorithm's global best are updated and the particles are moved according to their updated velocities; while in the asynchronous setting, every particle's personal best and the global best are updated after function evaluation at the particle's position, and the particle is moved according to the velocity which is updated with currently available global best, without waiting until the function evaluations at all particles' positions are done.
 
